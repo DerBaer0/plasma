@@ -29,6 +29,7 @@ from plasma.lib.memory import (MEM_CODE, MEM_UNK, MEM_FUNC, MEM_BYTE, MEM_WORD,
 from plasma.lib.analyzer import (FUNC_VARS, VAR_TYPE, VAR_NAME,
                                  FUNC_FLAG_NORETURN, FUNC_FLAGS)
 
+from plasma.lib.visitors.DumpVisitor import *
 
 class OutputAbs():
     def __init__(self, ctx=None):
@@ -573,7 +574,9 @@ class OutputAbs():
 
         self._new_line()
         self._all_vars(entry)
-        ast.dump(self, 1)
+        # DumpVisitor
+        dumpVis = DumpVisitor(self)
+        dumpVis.visit(ast, 1)
         self._add("}")
         self.join_lines()
 
