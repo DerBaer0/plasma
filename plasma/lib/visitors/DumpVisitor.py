@@ -33,7 +33,7 @@ class DumpVisitor:
 			noLine = False
 			if isinstance(n, ICALL):
 				self.o._tabs(tab)
-				self.o._add("rax = ")
+				self.o._add(str(n.retArg) + " = ")
 
 				self.o._operand(n.insn, 0, hexa=True, force_dont_print_data=True)
 				self.o._add("(")

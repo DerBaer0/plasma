@@ -90,8 +90,12 @@ class CallExpr():
 		o._add(")")
 
 class RegOp():
+	counter = 0
+
 	def __init__(self, reg):
 		self.reg = reg
+		self.num = RegOp.counter
+		RegOp.counter += 1
 		self.regName = {
 			X86_REG_RAX: "rax",
 			X86_REG_RBX: "rbx",
@@ -104,7 +108,8 @@ class RegOp():
 		}
 
 	def __str__(self):
-		return "%" + self.regName[self.reg]
+		return "%" + chr(ord('A') +  self.num)
+#		return "%" + self.regName[self.reg]
 
 	def writeOut(self, o):
-		o._add("%" + self.regName[self.reg])
+		o._add("%" + chr(ord('A') +  self.num))

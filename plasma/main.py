@@ -23,6 +23,7 @@ import plasma
 from plasma.lib import GlobalContext
 from plasma.lib.utils import info, die
 from plasma.lib.ui.vim import generate_vim_syntax
+from plasma.lib.analyzer import Analyzer
 from plasma.lib.api import Api
 
 # Generates the file custom_colors.py at the beginning
@@ -44,13 +45,14 @@ def console_entry():
     if not gctx.load_file():
         die()
 
+
+    from plasma.lib.ui.console import Console
     if gctx.interactive_mode:
-        from plasma.lib.ui.console import Console
         gctx.is_interactive = True
         Console(gctx)
 
     else:
-        gctx.api = Api(gctx, None)
+        Console(gctx)
 
         if gctx.list_sections:
             for s in gctx.dis.binary.iter_sections():

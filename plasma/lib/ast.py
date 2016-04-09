@@ -26,6 +26,7 @@ class ICALL(ICode):
     def __init__(self, csInsn):
         ICode.__init__(self, csInsn)
         self.numArgs = -1
+        self.retArg = None
 
 class IMUL(ICode):
     pass

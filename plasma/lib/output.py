@@ -549,7 +549,7 @@ class OutputAbs():
         name = self._dis.functions[func_addr][FUNC_VARS][off][VAR_NAME]
         if name is None:
             if off < 0:
-                return "var_%x" % (-off)
+            	return "_" + chr(ord('a') + (-off // 4) - 1)
             return "arg_%x" % off
         return name
 

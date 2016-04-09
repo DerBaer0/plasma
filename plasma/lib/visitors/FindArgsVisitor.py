@@ -124,8 +124,10 @@ class FindArgsVisitor:
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
 			elif isinstance(ic, ICALL):
 				reg0 = X86_REG_RAX
-				rightSide = CallExpr(self.ctx.gctx.api.get_symbol(ic.insn.operands[0].value.imm), [ic.highLevel[self.argRegs[a]] for a in range(ic.numArgs)])
-				ic.highLevel[reg0] = RegOp(reg0)
+				#rightSide = CallExpr(self.ctx.gctx.api.get_symbol(ic.insn.operands[0].value.imm), [ic.highLevel[self.argRegs[a]] for a in range(ic.numArgs)])
+				r = RegOp(reg0)
+				ic.highLevel[reg0] = r
+				ic.retArg = r
 				# invalidate caller-safe register
 				ic.highLevel[X86_REG_RCX] = UnknownOp()
 				ic.highLevel[X86_REG_RDX] = UnknownOp()
@@ -134,7 +136,7 @@ class FindArgsVisitor:
 		if op.type == X86_OP_REG:
 			ic.highLevel[self.BIGS[op.reg]] = value
 		elif op.type == X86_OP_MEM:
-			name = "var_%x" % (-op.mem.disp)
+			name = "_" + chr(ord('a') + (-op.mem.disp // 4) - 1)
 			ic.highLevel[name] = StrOp(value)
 		else:
 			# TODO error handling
@@ -224,7 +226,8 @@ class FindArgsVisitor:
 					# TODO ask dissassembler for given name (get_var_name)
 					if ic.insn.id == X86_INS_LEA:
 						res += "&("
-					res += "var_%x" % (-op.mem.disp)
+					res += "_" + chr(ord('a') + (-op.mem.disp // 4) - 1)
+
 					if ic.insn.id == X86_INS_LEA:
 						res += ")"
 					return VarOp(res)

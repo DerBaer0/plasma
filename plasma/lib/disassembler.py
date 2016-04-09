@@ -187,6 +187,10 @@ class Disassembler():
                 return off
         return None
 
+    def var_renameAllLocals(self):
+        print("Renaming all" + str(self.functions))
+        for f in self.functions:
+            print(f)
 
     def var_rename(self, func_ad, off, name):
         if func_ad not in self.functions:
