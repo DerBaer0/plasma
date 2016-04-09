@@ -284,7 +284,7 @@ class Disassembler():
         if s is None:
             # until is != -1 only from the visual mode
             # It allows to not go before the first section.
-            if until != -1: 
+            if until != -1:
                 return None
             # Get the next section, it's not mandatory that sections
             # are consecutives !

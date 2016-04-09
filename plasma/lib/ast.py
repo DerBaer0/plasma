@@ -17,6 +17,38 @@
 # along with this program.    If not, see <http://www.gnu.org/licenses/>.
 #
 
+class ICode:
+	def __init__(self, csInsn):
+		self.insn = csInsn
+		self.highLevel = dict() # 'high level' code string for each register (dict)
+
+class ICALL(ICode):
+    def __init__(self, csInsn):
+        ICode.__init__(self, csInsn)
+        self.numArgs = -1
+
+class IMUL(ICode):
+    pass
+
+class IMOV(ICode):
+	pass
+
+class ILEA(ICode):
+    pass
+
+class IJMP(ICode):
+	pass
+
+class IARITH(ICode):
+	def __init__(self, csInsn, typ):
+		ICode.__init__(self, csInsn)
+		self.typ = typ
+
+
+class Ast_CodeBlock:
+	def __init__(self, ics):
+		self.icodes = ics
+
 
 class Ast_Branch:
     def __init__(self):

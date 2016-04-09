@@ -23,6 +23,7 @@ import shlex
 import code
 import traceback
 import readline, rlcompleter
+import time
 
 from plasma.lib.colors import color
 from plasma.lib.utils import error, print_no_end
@@ -427,14 +428,19 @@ class Console():
         self.comp = Completer(self)
         self.comp.set_history(self.db.history)
 
-        while 1:
-            self.comp.loop()
-            if SHOULD_EXIT:
-                break
-            if not self.check_db_modified():
-                break
+        if gctx.is_interactive:
+            while 1:
+                self.comp.loop()
+                if SHOULD_EXIT:
+                    break
+                if not self.check_db_modified():
+                    break
+        else:
+            self.exec_command("exit")
 
+        # exit and wait for finish
         self.analyzer.msg.put("exit")
+        self.analyzer.join()
 
 
     def check_db_modified(self):

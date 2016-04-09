@@ -30,6 +30,12 @@ from plasma.lib.analyzer import (FUNC_VARS, VAR_TYPE, VAR_NAME,
                                  FUNC_FLAG_NORETURN, FUNC_FLAGS)
 
 from plasma.lib.visitors.DumpVisitor import *
+from plasma.lib.visitors.FindArgsVisitor import *
+from plasma.lib.visitors.LoopVisitor import *
+from plasma.lib.visitors.MapICodeVisitor import *
+from plasma.lib.visitors.ProEpiVisitor import *
+
+from capstone import *
 
 class OutputAbs():
     def __init__(self, ctx=None):
@@ -100,25 +106,26 @@ class OutputAbs():
         self.curr_index += len(string)
 
     def _address(self, addr, print_colon=True, normal_color=False, notprefix=False):
-        if self.section_prefix and not notprefix:
-            self._comment(self.curr_section.name)
-            self._add(" ")
-
-        s = hex(addr)
-        if print_colon:
-            s += ": "
-
-        if not normal_color and addr in self.ctx.addr_color:
-            col = self.ctx.addr_color[addr]
-        else:
-            if notprefix:
-                col = 0
-            else:
-                col = COLOR_ADDR.val
-
-        self.token_lines[-1].append((s, col, False))
-        self.lines[-1].append(s)
-        self.curr_index += len(s)
+        pass
+#        if self.section_prefix and not notprefix:
+#            self._comment(self.curr_section.name)
+#            self._add(" ")
+#
+#        s = hex(addr)
+#        if print_colon:
+#            s += ": "
+#
+#        if not normal_color and addr in self.ctx.addr_color:
+#            col = self.ctx.addr_color[addr]
+#        else:
+#            if notprefix:
+#                col = 0
+#            else:
+#                col = COLOR_ADDR.val
+#
+#        self.token_lines[-1].append((s, col, False))
+#        self.lines[-1].append(s)
+#        self.curr_index += len(s)
 
     def _type(self, string):
         self.token_lines[-1].append((string, COLOR_TYPE.val, COLOR_TYPE.bold))
@@ -262,6 +269,7 @@ class OutputAbs():
         if not is_first and self._label(ad, tab, print_colon):
             self._new_line()
 
+
             # Print stack variables
             if self._dis.mem.is_func(ad):
                 self._all_vars(ad)
@@ -383,8 +391,13 @@ class OutputAbs():
         self._new_line()
 
 
-    def _asm_block(self, blk, tab):
-        for i in blk:
+    # omit: number of first instructions to omit in output
+    def _asm_block(self, blk, tab, omit=0, omitEnd = 0):
+        if omitEnd != 0:
+            end = -omitEnd
+        else:
+            end = len(blk)
+        for i in blk[omit:end]:
             self._asm_inst(i, tab)
 
 
@@ -574,6 +587,35 @@ class OutputAbs():
 
         self._new_line()
         self._all_vars(entry)
+
+        # MapICodeVisitor - must be first
+        mapVis = MapICodeVisitor(self.gctx)
+        mapVis.visit(ast)
+        # ProEpiVisitor
+        proVis = ProEpiVisitor(self.gctx)
+        proVis.visit(ast)
+        self._tabs(1)
+        self._keyword("stackSize")
+        self._add(" := ")
+        self._add(str(proVis.stackSize))
+        self._new_line()
+
+        # LoopAnalyzer
+        loopVis = LoopVisitor(self.gctx)
+        loopVis.visit(ast, False, 0)
+        # FindArgsVisitor
+        findVis = FindArgsVisitor(self.ctx)
+        findVis.visit(ast)
+        self._tabs(1)
+        self._keyword("args")
+        self._add(": ")
+        for i in findVis.argRegs:
+            if findVis.usage[i] == "param":
+                self._type("x" + findVis.types[i] + "_t")
+                self._add(" " + findVis.firstInsn[i].insn.reg_name(i) + ", ")
+        self._new_line()
+        self._new_line()
+
         # DumpVisitor
         dumpVis = DumpVisitor(self)
         dumpVis.visit(ast, 1)
@@ -592,7 +634,6 @@ class OutputAbs():
 
     def _asm_inst(self, i, tab=0, prefix=""):
         self._previous_comment(i, tab)
-
         if prefix == "# ":
             # debug
             # from lib.utils import BRANCH_NEXT
@@ -629,22 +670,17 @@ class OutputAbs():
                 self._retcall(self.get_inst_str(i))
 
             elif self.ARCH_UTILS.is_call(i):
-                self._retcall(i.mnemonic)
-                self._add(" ")
-
-                if self.gctx.sectionsname:
-                    op = i.operands[0]
-                    if op.type == self.OP_IMM:
-                        s = self._binary.get_section(op.value.imm)
-                        if s is not None:
-                            self._add("(")
-                            self._section(s.name)
-                            self._add(") ")
-
-                self._operand(i, 0, hexa=True, force_dont_print_data=True)
+                assert(False, "Should not be visited again")
 
             # Here we can have conditional jump with the option --dump
             elif self.ARCH_UTILS.is_jump(i):
+                # This is a continue. Don't print the real jump
+                #if i.operands[-1].value.imm == 0x400588:
+                #    self._add("continue")
+                #    self._inline_comment(i)
+                #    self._new_line()
+                #    return
+
                 self._add(i.mnemonic)
                 if len(i.operands) > 0:
                     self._add(" ")
@@ -670,7 +706,7 @@ class OutputAbs():
             self._post_asm_inst(i, tab)
 
         self._inline_comment(i)
-        self._new_line()
+        #self._new_line()
 
 
     def print(self):
