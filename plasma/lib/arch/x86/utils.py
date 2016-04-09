@@ -25,7 +25,8 @@ from capstone.x86 import (X86_INS_ADD, X86_INS_AND, X86_INS_CMP, X86_INS_DEC,
         X86_INS_JNE, X86_INS_JNO, X86_INS_JNP, X86_INS_JNS, X86_INS_JO,
         X86_INS_JP, X86_INS_JRCXZ, X86_INS_JS, X86_INS_MOV, X86_INS_SHL,
         X86_INS_SAL, X86_INS_SAR, X86_OP_IMM, X86_OP_MEM,
-        X86_INS_SHR, X86_INS_SUB, X86_INS_XOR, X86_INS_OR, X86_INS_MOVSX)
+        X86_INS_SHR, X86_INS_SUB, X86_INS_XOR, X86_INS_OR, X86_INS_MOVSX,
+        X86_INS_POP, X86_INS_PUSH)
 
 
 OP_IMM = X86_OP_IMM
@@ -58,6 +59,11 @@ def is_ret(i):
 def is_call(i):
     return i.group(CS_GRP_CALL)
 
+def is_pop(i):
+    return i.id == X86_INS_POP
+
+def is_push(i):
+    return i.id == X86_INS_PUSH
 
 OPPOSITES = [
         [X86_INS_JE, X86_INS_JNE],
