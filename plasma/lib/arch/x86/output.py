@@ -265,6 +265,14 @@ class Output(OutputAbs):
                     self._operand(i, 0)
                     self._add(inst_symbol(i))
 
+                elif i.id == X86_INS_ADD and i.operands[1].type == X86_OP_IMM and i.operands[1].value.imm == 1:
+                    self._operand(i, 0)
+                    self._add(" ++")
+
+                elif i.id == X86_INS_SUB and i.operands[1].type == X86_OP_IMM and i.operands[1].value.imm == 1:
+                    self._operand(i, 0)
+                    self._add(" --")
+
                 elif i.id == X86_INS_LEA:
                     self._operand(i, 0)
                     self._add(" = ")
