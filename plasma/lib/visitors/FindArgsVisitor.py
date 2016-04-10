@@ -110,9 +110,37 @@ class FindArgsVisitor:
 			curValues = curValues.copy()
 			ic.highLevel = curValues
 			if isinstance(ic, IMUL):
-				reg0 = self.BIGS[ic.insn.operands[0].reg]
-				rightSide = self._getRValue(ic, ic.insn.operands[1])
-				ic.highLevel[reg0] = TextOp(ic.highLevel[reg0] + "*" + rightSide)
+				if len(ic.insn.operands) == 3:
+					# op0 = op1 * op2
+					r0 = self.BIGS[ic.insn.operands[0].reg]
+					r1 = self._getRValue(ic, ic.insn.operands[1])
+					r2 = self._getRValue(ic, ic.insn.operands[2])
+					ic.highLevel[r0] = ArithExpr(r1, "*", r2)
+				elif len(ic.insn.operands) == 2:
+					# op0 *= op1
+					r0 = self.BIGS[ic.insn.operands[0].reg]
+					r1 = self._getRValue(ic, ic.insn.operands[0])
+					r2 = self._getRValue(ic, ic.insn.operands[1])
+					ic.highLevel[r0] = ArithExpr(r1, "*", r2)
+				elif len(ic.insn.operands) == 1:
+					# rdx:rax = rax * op0
+					#sz = i.operands[0].size
+					#if sz == 1:
+					#	self._add("ax = al * ")
+					#elif sz == 2:
+					#	self._add("dx:ax = ax * ")
+					#elif sz == 4:
+					#	self._add("edx:eax = eax * ")
+					#elif sz == 8:
+					#	self._add("rdx:rax = rax * ")
+					#self._operand(i, 0)
+					r0 = X86_REG_RAX
+					r1 = ic.highLevel[X86_REG_RAX]
+					r2 = self._getRValue(ic, ic.insn.operands[0])
+					ic.highLevel[r0] = ArithExpr(r1, "*", r2)
+				#reg0 = self.BIGS[ic.insn.operands[0].reg]
+				#rightSide = self._getRValue(ic, ic.insn.operands[1])
+				#ic.highLevel[reg0] = TextOp(ic.highLevel[reg0] + "*" + rightSide)
 			elif isinstance(ic, IMOV):
 				rightSide = self._getRValue(ic, ic.insn.operands[1])
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
@@ -224,7 +252,6 @@ class FindArgsVisitor:
 			# if ad is set as an "offset"
 			sz = self.get_offset_size(ad)
 			if sz != -1:
-				val = section.read_int(ad, sz)
 				if self.ctx.gctx.capstone_string == 0:
 					#self._add("=")
 					#self._imm(val, 0, True, section=section,
@@ -370,4 +397,4 @@ class FindArgsVisitor:
 
 	@visitor(Ast_Comment)
 	def visit(self, node):
-		pass #print( "Comment")
+		val = section.read_int(ad, sz)
