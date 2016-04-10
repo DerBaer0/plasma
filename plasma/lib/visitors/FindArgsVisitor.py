@@ -131,6 +131,9 @@ class FindArgsVisitor:
 				# invalidate caller-safe register
 				ic.highLevel[X86_REG_RCX] = UnknownOp()
 				ic.highLevel[X86_REG_RDX] = UnknownOp()
+#			else:
+#				print("unknown op ")
+#				print(ic.insn.mnemonic)
 
 	def _setLValue(self, ic, op, value):
 		if op.type == X86_OP_REG:
@@ -209,8 +212,26 @@ class FindArgsVisitor:
 
 		return StrOp(res)
 
-	def _getRValue(self, ic, op):
+	def get_offset_size(self, ad):
+		if self.ctx.gctx.dis.mem.is_offset(ad):
+			return self.ctx.gctx.dis.mem.get_size(ad)
+		return -1
 
+	def deref_if_offset(self, ad):
+		section = self.ctx.gctx.dis.binary.get_section(ad)
+		if section is not None:
+			# if ad is set as an "offset"
+			sz = self.get_offset_size(ad)
+			if sz != -1:
+				val = section.read_int(ad, sz)
+				if self.ctx.gctx.capstone_string == 0:
+					#self._add("=")
+					#self._imm(val, 0, True, section=section,
+					#		  force_dont_print_data=True)
+					return True
+		return False
+
+	def _getRValue(self, ic, op):
 		def inv(n):
 			return n == X86_OP_INVALID
 
@@ -218,7 +239,7 @@ class FindArgsVisitor:
 			return ic.highLevel[self.BIGS[op.reg]]
 		elif op.type == X86_OP_MEM:
 			# FIXME: hardcoded stuff
-			show_deref = False
+			show_deref = True
 			mm = op.mem
 			res = ""
 			if inv(mm.segment) and inv(mm.index) and mm.disp != 0:
@@ -235,8 +256,7 @@ class FindArgsVisitor:
 				elif mm.base == X86_REG_RIP or mm.base == X86_REG_EIP:
 					ad = ic.insn.address + ic.insn.size + mm.disp
 
-					# FIXME einkommentiern
-					if ic.insn.id != X86_INS_LEA: # and self.deref_if_offset(ad):
+					if ic.insn.id != X86_INS_LEA and self.deref_if_offset(ad):
 						return VarOp(res)
 
 					if show_deref:
@@ -263,11 +283,11 @@ class FindArgsVisitor:
 
 			if not inv(mm.index):
 				if printed:
-					res += " + "
+					res = StrOp(res, " + ")
 				if mm.scale == 1:
-					res += "%s" % ic.insn.reg_name(mm.index)
+					res = StrOp(res, "%s" % ic.insn.reg_name(mm.index))
 				else:
-					res += "(%s*%d)" % (ic.insn.reg_name(mm.index), mm.scale)
+					res = StrOp(res, "(%s*%d)" % (ic.insn.reg_name(mm.index), mm.scale))
 					printed = True
 
 			if mm.disp != 0:

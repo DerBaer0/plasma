@@ -34,7 +34,13 @@ class MapICodeVisitor:
 		for i in range(len(node.nodes)):
 			if isinstance(node.nodes[i], list):
 				icodes = [self.translate(ins) for ins in node.nodes[i]]
+				# create prev linkage
+				last = None
+				for ic in icodes:
+					ic.prev = last
+					last =  ic
 				if i > 0 and isinstance(node.nodes[i-1], Ast_CodeBlock):
+					icodes[0].prev = node.nodes[i-1].icodes[-1]
 					node.nodes[i-1].icodes += icodes
 					node.nodes[i] = Ast_CodeBlock([])
 				else:

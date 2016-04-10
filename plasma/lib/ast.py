@@ -18,8 +18,9 @@
 #
 
 class ICode:
-	def __init__(self, csInsn):
+	def __init__(self, csInsn, prev=None):
 		self.insn = csInsn
+		self.prev = prev
 		self.highLevel = dict() # 'high level' code string for each register (dict)
 
 class ICALL(ICode):

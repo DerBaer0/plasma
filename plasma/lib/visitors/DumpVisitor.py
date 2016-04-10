@@ -38,17 +38,16 @@ class DumpVisitor:
 				self.o._operand(n.insn, 0, hexa=True, force_dont_print_data=True)
 				self.o._add("(")
 				if n.numArgs > 0:
-					#self.o._add(self.regName[self.argRegs[0]])
-					if isinstance(n.highLevel[self.argRegs[0]], str):
-						self.o._add(n.highLevel[self.argRegs[0]])
+					if isinstance(n.prev.highLevel[self.argRegs[0]], str):
+						self.o._add(n.prev.highLevel[self.argRegs[0]])
 					else:
-						n.highLevel[self.argRegs[0]].writeOut(self.o)
+						n.prev.highLevel[self.argRegs[0]].writeOut(self.o)
 					for i in range(1, n.numArgs):
 						self.o._add(", ")
-						if isinstance(n.highLevel[self.argRegs[i]], str):
-							self.o._add(n.highLevel[self.argRegs[i]])
+						if isinstance(n.prev.highLevel[self.argRegs[i]], str):
+							self.o._add(n.prev.highLevel[self.argRegs[i]])
 						else:
-							n.highLevel[self.argRegs[i]].writeOut(self.o)
+							n.prev.highLevel[self.argRegs[i]].writeOut(self.o)
 				self.o._add(")")
 			elif isinstance(n, IMOV):
 				# if writing to memory
@@ -56,9 +55,9 @@ class DumpVisitor:
 					self.o._asm_inst(n.insn, tab)
 				else:
 					noLine = True
+#					noLine = False
 #					self.o._add("#")
 #					self.o._asm_inst(n.insn, tab)
-					pass
 			elif isinstance(n, IJMP):
 				if n.insn.operands[-1].imm == self.exit:
 					self.o._tabs(tab)
@@ -68,16 +67,15 @@ class DumpVisitor:
 					n.highLevel[X86_REG_RAX].writeOut(self.o)
 			else:
 				noLine = True
-				#noLine = False
-				#self.o._add("#")
-				#self.o._asm_inst(n.insn, tab)
-				pass
+#				noLine = False
+#				self.o._add("#")
+#				self.o._asm_inst(n.insn, tab)
 
 			if self.printEveryLine:
 				self.o._new_line()
 				self.o._tabs(tab+1)
 				for i in n.highLevel:
-					if n.highLevel[i] != "?":
+					if not isinstance(n.highLevel[i], UnknownOp):
 						if i in self.regName:
 							self.o._add(self.regName[i] + " = ")
 						else:
@@ -92,7 +90,7 @@ class DumpVisitor:
 		if not self.printEveryLine and False:
 			self.o._tabs(tab+1)
 			for i in node.icodes[-1].highLevel:
-				if node.icodes[-1].highLevel[i] != "?":
+				if not isinstance(node.icodes[-1].highLevel[i], UnknownOp):
 					if i in self.regName:
 						self.o._add(self.regName[i] + " = ")
 					else:
