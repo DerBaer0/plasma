@@ -20,7 +20,7 @@ class NoneOp():
 	def writeOut(self, o):
 		pass
 
-class StrOp(): # FIXME: name stupid. this is not a string., just a not more specified thing
+class TextOp():
 	def __init__(self, str1, str2=None):
 		self.str1 = str1
 		if str2 == None:
@@ -41,6 +41,15 @@ class StrOp(): # FIXME: name stupid. this is not a string., just a not more spec
 		else:
 			self.str2.writeOut(o)
 
+class StrOp():
+	def __init__(self, str):
+		self.str = str
+
+	def __str__(self):
+		return "\"" + self.str + "\""
+
+	def writeOut(self, o):
+		o._string("\"" + self.str + "\"")
 
 class VarOp():
 	def __init__(self, str):

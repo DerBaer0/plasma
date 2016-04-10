@@ -112,7 +112,7 @@ class FindArgsVisitor:
 			if isinstance(ic, IMUL):
 				reg0 = self.BIGS[ic.insn.operands[0].reg]
 				rightSide = self._getRValue(ic, ic.insn.operands[1])
-				ic.highLevel[reg0] = StrOp(ic.highLevel[reg0] + "*" + rightSide)
+				ic.highLevel[reg0] = TextOp(ic.highLevel[reg0] + "*" + rightSide)
 			elif isinstance(ic, IMOV):
 				rightSide = self._getRValue(ic, ic.insn.operands[1])
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
@@ -140,7 +140,7 @@ class FindArgsVisitor:
 			ic.highLevel[self.BIGS[op.reg]] = value
 		elif op.type == X86_OP_MEM:
 			name = "_" + chr(ord('a') + (-op.mem.disp // 4) - 1)
-			ic.highLevel[name] = StrOp(value)
+			ic.highLevel[name] = TextOp(value)
 		else:
 			# TODO error handling
 			pass
@@ -157,7 +157,7 @@ class FindArgsVisitor:
 			# the file was loaded without a database.
 			if imm in self.ctx.gctx.dis.xrefs and ty != MEM_UNK and \
 					ty != MEM_ASCII or ty == -1:
-				return StrOp(str(imm))
+				return TextOp(str(imm))
 
 			if ty == MEM_ASCII:
 				print_data = True
@@ -182,11 +182,12 @@ class FindArgsVisitor:
 				if s is not None:
 					res += " "
 					res += '"' + s + '"'
+					return StrOp(s)
 
-			return StrOp(res)
+			return TextOp(res)
 
 		if label_printed:
-			return StrOp(res)
+			return TextOp(res)
 
 		if op_size == 1:
 			self._string("'%s'" % get_char(imm))
@@ -206,11 +207,11 @@ class FindArgsVisitor:
 				elif op_size == 8:
 					packed = struct.pack("<Q", imm)
 				else:
-					return StrOp(res)
+					return TextOp(res)
 				if set(packed).issubset(BYTES_PRINTABLE_SET):
 					self._string(" \"" + "".join(map(chr, packed)) + "\"")
 
-		return StrOp(res)
+		return TextOp(res)
 
 	def get_offset_size(self, ad):
 		if self.ctx.gctx.dis.mem.is_offset(ad):
@@ -265,16 +266,16 @@ class FindArgsVisitor:
 #					self._imm(ad, 4, True, force_dont_print_data=force_dont_print_data)
 					if show_deref:
 						res += ")"
-					return StrOp(res)
+					return TextOp(res)
 
 				elif inv(mm.base):
 					if ic.insn.id != X86_INS_LEA and self.deref_if_offset(mm.disp):
-						return StrOp(res)
+						return TextOp(res)
 
 			printed = False
 
 			if not inv(mm.base):
-				res = StrOp(res, ic.highLevel[self.BIGS[mm.base]])
+				res = TextOp(res, ic.highLevel[self.BIGS[mm.base]])
 				printed = True
 
 			elif not inv(mm.segment):
@@ -283,11 +284,11 @@ class FindArgsVisitor:
 
 			if not inv(mm.index):
 				if printed:
-					res = StrOp(res, " + ")
+					res = TextOp(res, " + ")
 				if mm.scale == 1:
-					res = StrOp(res, "%s" % ic.insn.reg_name(mm.index))
+					res = TextOp(res, "%s" % ic.insn.reg_name(mm.index))
 				else:
-					res = StrOp(res, "(%s*%d)" % (ic.insn.reg_name(mm.index), mm.scale))
+					res = TextOp(res, "(%s*%d)" % (ic.insn.reg_name(mm.index), mm.scale))
 					printed = True
 
 			if mm.disp != 0:
@@ -297,14 +298,14 @@ class FindArgsVisitor:
 				if True: #is_label or section is not None:
 					if isinstance(res, str):
 						print(res + " is str op")
-						res = StrOp(res)
+						res = TextOp(res)
 					if mm.disp < 0:
-						res = ArithExpr(res, "-", StrOp(str(-mm.disp)))
+						res = ArithExpr(res, "-", TextOp(str(-mm.disp)))
 					else:
-						res = ArithExpr(res, "+", StrOp(str(mm.disp)))
+						res = ArithExpr(res, "+", TextOp(str(mm.disp)))
 
 			if show_deref:
-				return StrOp("*(", StrOp(res, ")"))
+				return TextOp("*(", TextOp(res, ")"))
 					# TODO ask dissassembler for given name (get_var_name)
 #					name = "var_%x" % (-op.mem.disp)
 #					if name in ic.highLevel:
@@ -312,7 +313,7 @@ class FindArgsVisitor:
 #					else:
 #						return name
 			if isinstance(res, str):
-				return StrOp(res)
+				return TextOp(res)
 			else:
 				return res
 		elif op.type == X86_OP_IMM:
@@ -323,7 +324,7 @@ class FindArgsVisitor:
 #			else:
 #				return str(op.imm)
 		else:
-			return StrOp("U") # unknown source
+			return TextOp("U") # unknown source
 
 	@visitor(Ast_Branch)
 	def visit(self, node):
