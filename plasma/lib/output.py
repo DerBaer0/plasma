@@ -547,9 +547,10 @@ class OutputAbs():
 
     def __get_var_name(self, func_addr, off):
         name = self._dis.functions[func_addr][FUNC_VARS][off][VAR_NAME]
+        lst = list(self._dis.functions[func_addr][FUNC_VARS].keys())
         if name is None:
             if off < 0:
-            	return "_" + chr(ord('a') + (-off // 4) - 1)
+            	return "_" + chr(ord('a') + sorted(lst).index(off))
             return "arg_%x" % off
         return name
 
@@ -604,7 +605,7 @@ class OutputAbs():
         loopVis = LoopVisitor(self.gctx)
         loopVis.visit(ast, False, 0)
         # FindArgsVisitor
-        findVis = FindArgsVisitor(self.ctx)
+        findVis = FindArgsVisitor(entry, self.ctx)
         findVis.visit(ast)
         self._tabs(1)
         self._keyword("args")
@@ -617,7 +618,7 @@ class OutputAbs():
         self._new_line()
 
         # DumpVisitor
-        dumpVis = DumpVisitor(self)
+        dumpVis = DumpVisitor(self, self.gctx)
         dumpVis.visit(ast, 1)
         self._add("}")
         self.join_lines()

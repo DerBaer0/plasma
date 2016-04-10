@@ -61,6 +61,18 @@ class VarOp():
 	def writeOut(self, o):
 		o._variable(self.str)
 
+class AddressOfOp():
+	def __init__(self, operand):
+		self.op = operand
+
+	def __str__(self):
+		return "&(" + str(self.op) + ")"
+
+	def writeOut(self, o):
+		o._add("&(")
+		self.op.writeOut(o)
+		o._add(")")
+
 class ArithExpr():
 	def __init__(self, left, op, right):
 		self.left = left
@@ -68,12 +80,35 @@ class ArithExpr():
 		self.right = right
 
 	def __str__(self):
-		return str(self.left) + " " + str(self.op) + " " + str(self.right)
+		if isinstance(self.left, ArithExpr):
+			s = "(" + str(self.left) + ")"
+		else:
+			s = str(self.left)
+
+		s += " " + str(self.op) + " "
+		if isinstance(self.right, ArithExpr):
+			s += "(" + str(self.right) + ")"
+		else:
+			s += str(self.right)
+
+		return s
 
 	def writeOut(self, o):
-		self.left.writeOut(o)
+		if isinstance(self.left, ArithExpr):
+			o._add("(")
+			self.left.writeOut(o)
+			o._add(")")
+		else:
+			self.left.writeOut(o)
+
 		o._add(" " + self.op + " ")
-		self.right.writeOut(o)
+
+		if isinstance(self.right, ArithExpr):
+			o._add("(")
+			self.right.writeOut(o)
+			o._add(")")
+		else:
+			self.right.writeOut(o)
 
 class CallExpr():
 	def __init__(self, func, args):
@@ -122,3 +157,25 @@ class RegOp():
 
 	def writeOut(self, o):
 		o._add("%" + chr(ord('A') +  self.num))
+
+class SignExtOp():
+	def __init__(self, reg):
+		self.reg = reg
+
+	def __str__(self):
+		return "(sign ext)" + str(self.reg)
+
+	def writeOut(self, o):
+		o._add("(sign ext) ")
+		self.reg.writeOut(o)
+
+class ZeroExtOp():
+	def __init__(self, reg):
+		self.reg = reg
+
+	def __str__(self):
+		return "(zero ext)" + str(self.reg)
+
+	def writeOut(self, o):
+		o._add("(zero ext) ")
+		self.reg.writeOut(o)

@@ -70,6 +70,7 @@ class GlobalContext():
         self.capstone_string = 0 # See lib.ui.visual.main_cmd_inst_output
         self.show_mangling = True
         self.autoanalyzer = True
+        self.show_debug = False # show a debug line after every instruction containing all register values
 
         # Built objects
         self.dis = None # Disassembler
@@ -108,6 +109,7 @@ class GlobalContext():
         parser.add_argument('-i', '--interactive', action='store_true',
                 help='Interactive mode')
         parser.add_argument('-d', '--opt_debug', action='store_true')
+        parser.add_argument('-v', '--show_debug', action='store_true', help='Debug line after every line')
         parser.add_argument('-ns', '--nosectionsname', action='store_true')
         parser.add_argument('--raw', metavar='x86|x64|arm|mips|mips64',
                 help='Consider the input file as a raw binary')
@@ -138,6 +140,7 @@ class GlobalContext():
         self.raw_big_endian  = args.rawbe
         self.list_sections   = args.sections
         self.autoanalyzer    = not args.noautoanalyzer
+        self.show_debug       = args.show_debug
 
         if args.nbytes == 0:
             self.nbytes = 4
@@ -315,7 +318,7 @@ class AddrContext():
 
         if self.gctx.db.loaded and pe_nb_new_syms:
             self.gctx.db.modified = True
-        
+
         try:
             self.gph.loop_detection(self.entry)
             ast, correctly_ended = generate_ast(self)

@@ -4,12 +4,14 @@ from plasma.lib.ops import *
 from plasma.lib.utils import unsigned
 from plasma.lib.fileformat.binary import T_BIN_RAW
 from plasma.lib.memory import (MEM_CODE, MEM_UNK, MEM_FUNC, MEM_BYTE, MEM_WORD, MEM_DWORD, MEM_QWORD, MEM_ASCII, MEM_OFFSET)
+from plasma.lib.analyzer import (FUNC_VARS, VAR_TYPE, VAR_NAME, FUNC_FLAG_NORETURN, FUNC_FLAGS)
 
 from capstone.x86 import *
 
 class FindArgsVisitor:
-	def __init__(self, ctx=None):
+	def __init__(self, func_addr, ctx=None):
 		self.ctx = ctx
+		self.func_addr = func_addr
 		self.argRegs = [X86_REG_RDI, X86_REG_RSI, X86_REG_RDX, X86_REG_RCX, X86_REG_R8, X86_REG_R9]
 		self.usage = {X86_REG_RDI: "unknown", X86_REG_RSI: "unknown", X86_REG_RDX: "unknown", X86_REG_RCX: "unknown", X86_REG_R8: "unknown", X86_REG_R9: "unknown"}
 		self.types = {X86_REG_RDI: "unknown", X86_REG_RSI: "unknown", X86_REG_RDX: "unknown", X86_REG_RCX: "unknown", X86_REG_R8: "unknown", X86_REG_R9: "unknown"}
@@ -137,18 +139,28 @@ class FindArgsVisitor:
 					r0 = X86_REG_RAX
 					r1 = ic.highLevel[X86_REG_RAX]
 					r2 = self._getRValue(ic, ic.insn.operands[0])
-					ic.highLevel[r0] = ArithExpr(r1, "*", r2)
-				#reg0 = self.BIGS[ic.insn.operands[0].reg]
-				#rightSide = self._getRValue(ic, ic.insn.operands[1])
-				#ic.highLevel[reg0] = TextOp(ic.highLevel[reg0] + "*" + rightSide)
+					ic.highLevel[r0] = ArithExpr(ArithExpr(r1, "*", r2), "%", TextOp("64Bit"))
+					ic.highLevel[X86_REG_RDX] = ArithExpr(ArithExpr(r1, "*", r2), "/", TextOp("64Bit"))
+			elif isinstance(ic, ISHR):
+				rightSide = ArithExpr(self._getRValue(ic, ic.insn.operands[0]), ">>", self._getRValue(ic, ic.insn.operands[1]))
+				self._setLValue(ic, ic.insn.operands[0], rightSide)
+			elif isinstance(ic, ISHL):
+				rightSide = ArithExpr(self._getRValue(ic, ic.insn.operands[0]), "<<", self._getRValue(ic, ic.insn.operands[1]))
+				self._setLValue(ic, ic.insn.operands[0], rightSide)
 			elif isinstance(ic, IMOV):
 				rightSide = self._getRValue(ic, ic.insn.operands[1])
+				self._setLValue(ic, ic.insn.operands[0], rightSide)
+			elif isinstance(ic, IMOVSXD):
+				rightSide = SignExtOp(self._getRValue(ic, ic.insn.operands[1]))
+				self._setLValue(ic, ic.insn.operands[0], rightSide)
+			elif isinstance(ic, IMOVZX):
+				rightSide = ZeroExtOp(self._getRValue(ic, ic.insn.operands[1]))
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
 			elif isinstance(ic, IARITH):
 				rightSide = ArithExpr(self._getRValue(ic, ic.insn.operands[0]), str(ic.typ), self._getRValue(ic, ic.insn.operands[1]))
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
 			elif isinstance(ic, ILEA):
-				rightSide = self._getRValue(ic, ic.insn.operands[1])
+				rightSide = self._getRValue(ic, ic.insn.operands[1], show_deref=False)
 				self._setLValue(ic, ic.insn.operands[0], rightSide)
 			elif isinstance(ic, ICALL):
 				reg0 = X86_REG_RAX
@@ -167,11 +179,20 @@ class FindArgsVisitor:
 		if op.type == X86_OP_REG:
 			ic.highLevel[self.BIGS[op.reg]] = value
 		elif op.type == X86_OP_MEM:
-			name = "_" + chr(ord('a') + (-op.mem.disp // 4) - 1)
+			name = self.__get_var_name(self.func_addr, op.mem.disp)
 			ic.highLevel[name] = TextOp(value)
 		else:
 			# TODO error handling
 			pass
+
+	def __get_var_name(self, func_addr, off):
+		name = self.ctx.gctx.dis.functions[func_addr][FUNC_VARS][off][VAR_NAME]
+		lst = list(self.ctx.gctx.dis.functions[func_addr][FUNC_VARS].keys())
+		if name is None:
+			if off < 0:
+				return "_" + chr(ord('a') + sorted(lst).index(off))
+			return "arg_%x" % off
+		return name
 
 	def _getIMMString(self, imm, op_size, hexa, section=None, print_data=True, force_dont_print_data=False):
 		hexa = True
@@ -259,7 +280,7 @@ class FindArgsVisitor:
 					return True
 		return False
 
-	def _getRValue(self, ic, op):
+	def _getRValue(self, ic, op, show_deref=True):
 		def inv(n):
 			return n == X86_OP_INVALID
 
@@ -267,19 +288,20 @@ class FindArgsVisitor:
 			return ic.highLevel[self.BIGS[op.reg]]
 		elif op.type == X86_OP_MEM:
 			# FIXME: hardcoded stuff
-			show_deref = True
 			mm = op.mem
 			res = ""
 			if inv(mm.segment) and inv(mm.index) and mm.disp != 0:
 				if (mm.base == X86_REG_RBP or mm.base == X86_REG_EBP): # and self.var_name_exists(i, num_op):
-					# TODO ask dissassembler for given name (get_var_name)
+					varName = self.__get_var_name(self.func_addr, op.mem.disp)
 					if ic.insn.id == X86_INS_LEA:
-						res += "&("
-					res += "_" + chr(ord('a') + (-op.mem.disp // 4) - 1)
+						res = AddressOfOp(VarOp(varName))
+					else:
+						if varName in ic.highLevel:
+							res = ic.highLevel[varName]
+						else:
+							res = VarOp(varName)
 
-					if ic.insn.id == X86_INS_LEA:
-						res += ")"
-					return VarOp(res)
+					return res
 
 				elif mm.base == X86_REG_RIP or mm.base == X86_REG_EIP:
 					ad = ic.insn.address + ic.insn.size + mm.disp
@@ -313,9 +335,9 @@ class FindArgsVisitor:
 				if printed:
 					res = TextOp(res, " + ")
 				if mm.scale == 1:
-					res = TextOp(res, "%s" % ic.insn.reg_name(mm.index))
+					res = TextOp(res, "%s" % ic.highLevel[self.BIGS[mm.index]])
 				else:
-					res = TextOp(res, "(%s*%d)" % (ic.insn.reg_name(mm.index), mm.scale))
+					res = TextOp(res, "(%s*%d)" % (ic.highLevel[self.BIGS[mm.index]], mm.scale))
 					printed = True
 
 			if mm.disp != 0:

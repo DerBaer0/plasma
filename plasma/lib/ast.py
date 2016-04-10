@@ -32,7 +32,19 @@ class ICALL(ICode):
 class IMUL(ICode):
     pass
 
+class ISHR(ICode):
+	pass
+
+class ISHL(ICode):
+	pass
+
 class IMOV(ICode):
+	pass
+
+class IMOVZX(ICode):
+	pass
+
+class IMOVSXD(ICode):
 	pass
 
 class ILEA(ICode):

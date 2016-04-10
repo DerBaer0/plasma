@@ -9,20 +9,37 @@ class MapICodeVisitor:
 				self.gctx = gctx
 
 	def translate(self, insn):
-		if insn.id == X86_INS_CALL:
-			return ICALL(insn)
-		if insn.id == X86_INS_MOV:
+		# Moves
+		if insn.id == X86_INS_MOV or insn.id == X86_INS_MOVABS:
 			return IMOV(insn)
+		if insn.id == X86_INS_MOVZX:
+			return IMOVZX(insn)
+		if insn.id == X86_INS_MOVSXD:
+			return IMOVSXD(insn)
+
+		# Arithmetic
 		if insn.id == X86_INS_ADD:
 			return IARITH(insn, "+")
 		if insn.id == X86_INS_SUB:
 			return IARITH(insn, "-")
-		if insn.id == X86_INS_IMUL:
+		if insn.id == X86_INS_XOR:
+			return IARITH(insn, "^")
+		if insn.id == X86_INS_IMUL or insn.id == X86_INS_MUL:
 			return IMUL(insn)
-		if insn.id == X86_INS_LEA:
-			return ILEA(insn)
+		if insn.id == X86_INS_SHR:
+			return ISHR(insn)
+		if insn.id == X86_INS_SHL:
+			return ISHL(insn)
+
+		# Jumps
 		if insn.id == X86_INS_JMP:
 			return IJMP(insn)
+
+		# Misc
+		if insn.id == X86_INS_CALL:
+			return ICALL(insn)
+		if insn.id == X86_INS_LEA:
+			return ILEA(insn)
 		return ICode(insn)
 
 	@visitor(Ast_CodeBlock)

@@ -6,7 +6,7 @@ from plasma.lib.arch.x86.utils import OPPOSITES
 from capstone.x86 import *
 
 class DumpVisitor:
-	def __init__(self, out):
+	def __init__(self, out, gctx=None):
 		self.o = out
 		self.topLevel = True # after the first instructions, drop this (used to determine the prolog)
 		self.regName = {
@@ -19,14 +19,41 @@ class DumpVisitor:
 			X86_REG_R8: "r8",
 			X86_REG_R9: "r9"
 		}
+		self.BIGS = {
+			# RDI
+			X86_REG_RDI: X86_REG_RDI,
+			X86_REG_EDI: X86_REG_RDI,
+			# RSI
+			X86_REG_RSI: X86_REG_RSI,
+			X86_REG_ESI: X86_REG_RSI,
+			# RDX
+			X86_REG_RDX: X86_REG_RDX,
+			X86_REG_EDX: X86_REG_RDX,
+			X86_REG_DX: X86_REG_RDX,
+			X86_REG_DL: X86_REG_RDX,
+			# RCX
+			X86_REG_RCX: X86_REG_RCX,
+			X86_REG_ECX: X86_REG_RCX,
+			X86_REG_CX: X86_REG_RCX,
+			X86_REG_CL: X86_REG_RCX,
+			# RAX
+			X86_REG_RAX: X86_REG_RAX,
+			X86_REG_EAX: X86_REG_RAX,
+			X86_REG_AX: X86_REG_RAX,
+			X86_REG_AL: X86_REG_RAX,
+			# RBX
+			X86_REG_RBX: X86_REG_RBX,
+			X86_REG_EBX: X86_REG_RBX,
+			X86_REG_BX: X86_REG_RBX,
+			X86_REG_BL: X86_REG_RBX
+		}
 		self.argRegs = [X86_REG_RDI, X86_REG_RSI, X86_REG_RDX, X86_REG_RCX, X86_REG_R8, X86_REG_R9]
-		self.printEveryLine = False
+		self.gctx = gctx
+		self.printEveryLine = gctx.show_debug
 		self.exit = -1
 
 	@visitor(Ast_CodeBlock, int)
 	def visit(self, node, tab):
-#		self.o._add("-----------------------")
-#		self.o._new_line()
 		for n in node.icodes:
 			# do already mapped instructions by myself
 			# and only print code for instructinos with sideeffects (mem, call)
@@ -52,12 +79,25 @@ class DumpVisitor:
 			elif isinstance(n, IMOV):
 				# if writing to memory
 				if n.insn.operands[0].type == X86_OP_MEM:
-					self.o._asm_inst(n.insn, tab)
-				else:
-					noLine = True
-#					noLine = False
-#					self.o._add("#")
+					self.o._tabs(tab)
+					self.o._operand(n.insn, 0)
+					self.o._add(" := ")
+					if n.insn.operands[1].type == X86_OP_REG:
+						src = self.BIGS[n.insn.operands[1].reg]
+						# FIXME should be n.pref.highLevel, but this is an empty set ...
+						n.highLevel[src].writeOut(self.o)
+					elif n.insn.operands[1].type == X86_OP_IMM:
+						self.o._imm(n.insn.operands[1].imm, 1, hexa=True)
+					else:
+						assert(False)
 #					self.o._asm_inst(n.insn, tab)
+				else:
+					if self.printEveryLine:
+						noLine = False
+						self.o._add("#")
+						self.o._asm_inst(n.insn, tab)
+					else:
+						noLine = True
 			elif isinstance(n, IJMP):
 				if n.insn.operands[-1].imm == self.exit:
 					self.o._tabs(tab)
@@ -66,16 +106,18 @@ class DumpVisitor:
 					print(n.highLevel[X86_REG_RAX])
 					n.highLevel[X86_REG_RAX].writeOut(self.o)
 			else:
-				noLine = True
-#				noLine = False
-#				self.o._add("#")
-#				self.o._asm_inst(n.insn, tab)
+				if self.printEveryLine:
+					noLine = False
+					self.o._add("#")
+					self.o._asm_inst(n.insn, tab)
+				else:
+					noLine = True
 
 			if self.printEveryLine:
 				self.o._new_line()
 				self.o._tabs(tab+1)
 				for i in n.highLevel:
-					if not isinstance(n.highLevel[i], UnknownOp):
+					if (not isinstance(n.highLevel[i], UnknownOp)) and (n.prev == None or (not i in n.prev.highLevel) or n.highLevel[i] != n.prev.highLevel[i]):
 						if i in self.regName:
 							self.o._add(self.regName[i] + " = ")
 						else:
@@ -85,19 +127,6 @@ class DumpVisitor:
 
 			if not noLine:
 				self.o._new_line()
-
-		# end of block. print summary
-		if not self.printEveryLine and False:
-			self.o._tabs(tab+1)
-			for i in node.icodes[-1].highLevel:
-				if not isinstance(node.icodes[-1].highLevel[i], UnknownOp):
-					if i in self.regName:
-						self.o._add(self.regName[i] + " = ")
-					else:
-						self.o._add(i + " = ")
-					self.o._string("\"" + str(node.icodes[-1].highLevel[i]) + "\"")
-					self.o._add(", ")
-			self.o._new_line()
 
 	@visitor(Ast_Branch, int)
 	def visit(self, node, tab):
